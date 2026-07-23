@@ -115,6 +115,17 @@ function parseArgs(argv: string[]): Options | { help: true } | { error: string }
 		i += 1;
 	}
 	if (!patternSet) return { error: "missing <filter> — recon needs a feature filter (e.g. recon \"dark mode\")" };
+	// Validate a --regex filter up front so a bad pattern is a usage error (exit
+	// 2), not a stack trace from deep inside the run. makeMatcher compiles the
+	// same RegExp later; catch the SyntaxError here before any suite is started.
+	if (opts.regex) {
+		try {
+			new RegExp(opts.pattern);
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			return { error: `invalid --regex ${JSON.stringify(opts.pattern)}: ${detail}` };
+		}
+	}
 	return opts;
 }
 

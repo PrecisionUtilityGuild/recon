@@ -34,6 +34,15 @@ describe("usage errors (exit 2, no run)", () => {
 		expect(res.status).toBe(2);
 		expect(res.stderr).toContain("unknown option");
 	});
+
+	test.skipIf(!ready)("invalid --regex → exit 2 naming the bad pattern, no run", () => {
+		const res = run(THEME, ["--regex", "(unclosed"]);
+		expect(res.status).toBe(2);
+		expect(res.stderr).toContain("invalid --regex");
+		expect(res.stderr).toContain('"(unclosed"');
+		// Validated before any suite runs, so nothing is ranked.
+		expect(res.stdout).toBe("");
+	});
 });
 
 describe.skipIf(!ready)("degenerate partition (exit 3)", () => {

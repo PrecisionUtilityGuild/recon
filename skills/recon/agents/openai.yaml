@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature location"
+  short_description: "Locate feature implementation lines with Vitest evidence"
+  default_prompt: "Use $recon to locate where this feature is implemented in my Vitest project."

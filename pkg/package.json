@@ -36,6 +36,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "prepublishOnly": "tsc"
   },
   "dependencies": {

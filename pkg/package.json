@@ -1,0 +1,55 @@
+{
+  "name": "@precisionutilityguild/recon",
+  "version": "0.1.0",
+  "description": "Feature location by coverage diff for vitest — where does feature X live? These lines, ranked, with the tests that prove it.",
+  "keywords": [
+    "feature-location",
+    "coverage",
+    "coverage-diff",
+    "software-reconnaissance",
+    "where-is-this-feature-implemented",
+    "vitest",
+    "ochiai",
+    "code-navigation",
+    "ai-agent"
+  ],
+  "author": "Precision Utility Guild",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrecisionUtilityGuild/recon.git",
+    "directory": "pkg"
+  },
+  "homepage": "https://github.com/PrecisionUtilityGuild/recon#readme",
+  "bugs": {
+    "url": "https://github.com/PrecisionUtilityGuild/recon/issues"
+  },
+  "type": "module",
+  "bin": {
+    "recon": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc"
+  },
+  "dependencies": {
+    "ast-v8-to-istanbul": "^1.0.5"
+  },
+  "peerDependencies": {
+    "vitest": ">=4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,3 @@
+# Fixture vitest runs create local caches under node_modules/.vite and a temp
+# synthetic config under node_modules/.recon — never commit them.
+*/node_modules/

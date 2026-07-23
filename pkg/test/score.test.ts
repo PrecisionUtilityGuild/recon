@@ -170,4 +170,23 @@ describe("human encoding", () => {
 		r.totals.failed = 1;
 		expect(formatHuman(r)).toContain("caveat: 1 feature test(s) failed");
 	});
+
+	test("empty ranking explains the module-scope limitation instead of 'top 0 lines'", () => {
+		const r: Report = {
+			runner: "vitest",
+			pattern: "dark mode",
+			totals: { total: 4, feature: 2, rest: 2, failed: 0 },
+			featureTests: [{ id: "T1", file: "test/theme.test.ts", name: "dark mode" }],
+			files: [],
+			ranked: [],
+			totalNonzero: 0,
+			truncated: false,
+		};
+		const out = formatHuman(r);
+		expect(out).toContain("no attributable line coverage");
+		expect(out).toContain("module-scope");
+		expect(out).toContain("documented v1 limitation");
+		// The empty-table wording is gone.
+		expect(out).not.toContain("top 0 lines");
+	});
 });

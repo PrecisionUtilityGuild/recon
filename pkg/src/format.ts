@@ -75,6 +75,23 @@ export function formatHuman(report: Report): string {
 	});
 	lines.push("");
 
+	// No rankable lines survived: the feature tests matched and ran, but every
+	// line they cover was unattributable (commonly module-scope code, which the
+	// collector cannot assign to a test — a documented v1 limitation). Say so
+	// instead of printing an empty "top 0 lines" table.
+	if (totalNonzero === 0) {
+		lines.push(
+			"no attributable line coverage — the matched feature tests ran but produced no rankable lines.",
+		);
+		lines.push(
+			"  This usually means the feature's footprint is module-scope code (registration, top-level",
+		);
+		lines.push(
+			"  constants), which the collector cannot attribute to a test — a documented v1 limitation.",
+		);
+		return `${lines.join("\n")}\n`;
+	}
+
 	const shown = ranked.length;
 	const suffix = report.truncated
 		? `top ${shown} lines (of ${totalNonzero} covered by feature tests; ranked by exclusivity)`

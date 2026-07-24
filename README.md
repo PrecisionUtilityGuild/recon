@@ -1,12 +1,12 @@
-# Feature location for Vitest
+# Feature location for Vitest and Jest
 
-**Where is feature X implemented?** Feature location by per-test coverage diff for Vitest —
+**Where is feature X implemented?** Feature location by per-test coverage diff for Vitest and Jest —
 ranked source lines with the tests that prove them. It is execution evidence, not a grep result:
 the tool runs your suite and ranks the lines exercised most exclusively by feature-matching tests.
 
 ## Install / quickstart
 
-Run from the root of a project using Vitest 4 or newer:
+Run from the root of a project using Vitest 4+ or Jest 30+:
 
 ```
 npx @precisionutilityguild/recon "dark mode"
@@ -70,8 +70,9 @@ it. That is a different query from these neighbors:
 | `--all` | Return every nonzero line covered by a feature test. |
 | `--regex` | Treat the filter as a JavaScript regular expression instead of a substring. |
 | `--file <glob>` | Match the filter as a glob against test file paths instead of test names. |
+| `--runner <name>` | Force the runner: `vitest` or `jest`. Otherwise it is auto-detected. |
 | `-h`, `--help` | Print CLI help. |
-| `-- <args>` | Pass every following argument through to Vitest. |
+| `-- <args>` | Pass every following argument through to the selected runner. |
 
 ## Exit codes
 
@@ -80,18 +81,20 @@ Branch on the exit code, not output text:
 | Code | Meaning |
 |---|---|
 | `0` | Ranking produced. |
-| `1` | Runtime/internal failure: Vitest crashed, coverage collection failed, a multi-project config was found, or test files failed to collect. |
-| `2` | Usage error: bad flags, no Vitest, or project `coverage.enabled`; the run is refused. |
+| `1` | Runtime/internal failure: the runner crashed, coverage collection failed, a multi-project config was found, or test files failed to collect (under Jest, also a docblock environment override or a retry that breaks per-test attribution). |
+| `2` | Usage error: bad flags, no runner, project coverage enabled, a resolved Jest below major 30, or a custom Jest environment / non-circus runner; the run is refused. |
 | `3` | Degenerate partition: the filter matched zero tests or all tests. Re-pattern and retry. |
 
 ## Limitations
 
-- Vitest 4+ only.
+- Vitest 4+ or Jest 30+.
 - The feature must have tests whose names or files define a non-degenerate partition.
 - Module-scope / import-time code cannot be attributed to a test, so it is invisible.
 - V8 attributes a statement to its first line, so continuation lines are not independently visible.
 - Files whose source-map alignment cannot be verified are conservatively excluded from ranking.
 - Multi-project and workspace configurations are refused.
+- The Jest path is narrower: only the default `jest-environment-node` with the jest-circus runner,
+  no per-file environment overrides or retries. Full list: [Known limitations (Jest)](./pkg/README.md#known-limitations-jest).
 
 ## More
 

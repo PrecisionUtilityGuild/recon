@@ -1,16 +1,30 @@
-# Feature location for Vitest
+# Feature location for Vitest and Jest
 
 **Where is feature X implemented?** This tool answers by running the test suite and ranking the
 source lines exercised most exclusively by feature-matching tests. It is execution evidence for
 feature location, not a grep result.
 
-Run it from the root of a project with Vitest 4 or newer:
+Run it from the root of a project with Vitest 4+ or Jest 30+:
 
 `npx @precisionutilityguild/recon "dark mode"`
 
 The quoted filter is a case-insensitive substring of each test's full `suite > test` name. The
 matching tests form the feature set; every other test forms the baseline. Lines are ranked by
 Ochiai exclusivity, and the output names the feature tests that covered each line.
+
+## Runners
+
+recon detects the runner the same way for every command: a Jest config (a `jest` key in
+`package.json` or a `jest.config.*` file) or a declared `jest` without a declared `vitest` selects
+Jest; everything else uses Vitest. Force the choice with `--runner vitest` or `--runner jest`.
+
+- **Vitest 4+** — the per-test coverage runner is injected through a synthetic config that inherits
+  the project's own config.
+- **Jest 30+** — recon runs the project's own Jest with an injected `--testEnvironment` that records
+  per-test V8 coverage through jest-circus events; the project's Jest configuration is not edited.
+  The Jest floor is enforced at runtime, not just advised by `peerDependencies`: a resolved Jest
+  below major 30 is refused with exit 2, naming the version found
+  ([`resolveJest`](./src/jest-collect.ts), covered by `test/jest-version-gate.test.ts`).
 
 ## Real run
 
@@ -76,8 +90,9 @@ exit_code=0
 | `--all` | Return every nonzero line covered by a feature test. |
 | `--regex` | Treat the filter as a JavaScript regular expression instead of a case-insensitive substring. |
 | `--file <glob>` | Match the filter as a glob against test file paths instead of test names. |
+| `--runner <name>` | Force the runner: `vitest` or `jest`. Otherwise it is auto-detected. |
 | `-h`, `--help` | Print CLI help. |
-| `-- <args>` | Pass every following argument through to Vitest. |
+| `-- <args>` | Pass every following argument through to the selected runner. |
 
 `--file` accepts `*` within one path segment, `**` across path separators, and `?` for one
 character. For example, `npx @precisionutilityguild/recon --file "test/dark*.test.ts"` partitions
@@ -92,7 +107,7 @@ this shape:
 |---|---|
 | `version` | `1` |
 | `tool` | `"recon"` |
-| `runner` | `"vitest"` |
+| `runner` | `"vitest"` or `"jest"` |
 | `pattern` | The filter string exactly as supplied. |
 | `tests` | `{ total, feature, rest, failed }`; `failed` counts failed feature tests. |
 | `featureTests` | Array of `{ id, file, name }`. |
@@ -115,13 +130,13 @@ Branch on the exit code, not output text:
 | Code | Meaning |
 |---|---|
 | `0` | Ranking produced. |
-| `1` | Runtime/internal failure: Vitest crashed, coverage collection failed, a multi-project config was found, or test files failed to collect; the test universe is incomplete, so no ranking is produced. |
-| `2` | Usage error: bad flags, no Vitest, or project `coverage.enabled`; the run is refused. |
+| `1` | Runtime/internal failure: the runner crashed, coverage collection failed, a multi-project config was found, or test files failed to collect; the test universe is incomplete, so no ranking is produced. Under Jest this also fires when a per-file environment override or a test retry breaks one-to-one coverage attribution. |
+| `2` | Usage error: bad flags, no runner installed, project coverage enabled (`coverage.enabled` / Jest `collectCoverage`), a resolved Jest below major 30, or a custom/non-Node Jest environment or non-circus Jest runner; the run is refused. |
 | `3` | Degenerate partition: the filter matched zero tests or all tests, leaving no usable feature-versus-baseline comparison. Re-pattern and retry. |
 
 ## Limitations
 
-- Vitest 4+ only.
+- Vitest 4+ or Jest 30+.
 - The feature must have tests whose names or files can define a non-degenerate partition.
 - Module-scope code cannot be attributed to a test. Registration and other import-time code is
   therefore invisible.
@@ -130,6 +145,30 @@ Branch on the exit code, not output text:
 - Files whose source-map alignment cannot be verified are conservatively excluded from ranking
   instead of being assigned guessed source lines.
 - Multi-project and workspace configurations are refused.
+
+### Known limitations (Jest)
+
+The Jest path is narrower than the Vitest path by design — coverage is attributed per test only
+when recon's injected environment sees every test. recon refuses, rather than silently ranking a
+partial universe, in these cases:
+
+- **Jest below major 30 is refused** (exit 2). The floor is checked against the resolved install at
+  runtime, not merely declared, because package managers routinely install out-of-range peers.
+- **A custom or non-Node `testEnvironment` is refused** (exit 2). recon can only wrap the default
+  `jest-environment-node`; a jsdom or other custom environment would bypass the per-test collector.
+  The check compares package identity, so a hoisted-vs-nested copy of `jest-environment-node` is
+  still accepted.
+- **A per-file `@jest-environment` docblock, or a test retry** (`jest.retryTimes`), makes the
+  reported test count and the recorded coverage disagree; recon detects the mismatch and refuses the
+  incomplete run (exit 1) rather than ranking against a partial universe.
+- **A non-jest-circus `testRunner` is refused** (exit 2): only jest-circus emits the per-test
+  environment events recon needs.
+- **Jest `projects` / multi-project configs are refused** (exit 1), matching the Vitest
+  multi-project limitation.
+
+Each of these is enforced in [`src/adapters.ts`](./src/adapters.ts) /
+[`src/jest-collect.ts`](./src/jest-collect.ts) and asserted in `test/jest-integration.test.ts`,
+`test/jest-version-gate.test.ts`, and `test/jest-environment-gate.test.ts`.
 
 Lineage: [*Software Reconnaissance: Mapping Program Features to Code*, Wilde & Scully,
 1995](https://doi.org/10.1002/smr.4360070105).

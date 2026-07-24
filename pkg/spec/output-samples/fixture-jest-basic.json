@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "tool": "recon",
+  "runner": "jest",
+  "pattern": "dark mode",
+  "tests": {
+    "total": 4,
+    "feature": 2,
+    "rest": 2,
+    "failed": 0
+  },
+  "featureTests": [
+    {
+      "id": "T1",
+      "file": "test/theme.test.js",
+      "name": "dark mode > dark mode uses a black background"
+    },
+    {
+      "id": "T2",
+      "file": "test/theme.test.js",
+      "name": "dark mode > dark mode reports the dark label"
+    }
+  ],
+  "files": [
+    {
+      "rank": 1,
+      "path": "src/theme.js",
+      "bestScore": 1,
+      "lineCount": 5
+    }
+  ],
+  "lines": [
+    {
+      "rank": 1,
+      "file": "src/theme.js",
+      "line": 13,
+      "source": "const background = \"#000000\";",
+      "exclusivity": 1,
+      "counters": { "cf": 2, "cn": 0, "F": 2, "N": 2 },
+      "featureTests": ["T1", "T2"],
+      "unique": true
+    },
+    {
+      "rank": 2,
+      "file": "src/theme.js",
+      "line": 14,
+      "source": "const foreground = \"#e0e0e0\";",
+      "exclusivity": 1,
+      "counters": { "cf": 2, "cn": 0, "F": 2, "N": 2 },
+      "featureTests": ["T1", "T2"],
+      "unique": true
+    },
+    {
+      "rank": 3,
+      "file": "src/theme.js",
+      "line": 15,
+      "source": "return { background, foreground, label: \"dark\" };",
+      "exclusivity": 1,
+      "counters": { "cf": 2, "cn": 0, "F": 2, "N": 2 },
+      "featureTests": ["T1", "T2"],
+      "unique": true
+    },
+    {
+      "rank": 4,
+      "file": "src/theme.js",
+      "line": 5,
+      "source": "return darkTheme();",
+      "exclusivity": 0.7071,
+      "counters": { "cf": 1, "cn": 0, "F": 2, "N": 2 },
+      "featureTests": ["T1"],
+      "unique": true
+    },
+    {
+      "rank": 5,
+      "file": "src/theme.js",
+      "line": 4,
+      "source": "if (mode === \"dark\") {",
+      "exclusivity": 0.5,
+      "counters": { "cf": 1, "cn": 1, "F": 2, "N": 2 },
+      "featureTests": ["T1"],
+      "unique": false
+    }
+  ],
+  "totalNonzero": 5,
+  "truncated": false
+}

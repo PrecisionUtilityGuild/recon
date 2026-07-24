@@ -1,0 +1,22 @@
+recon · feature: "dark mode" · tests: 4 (2 feature, 2 rest)
+
+feature tests
+  T1  test/theme.test.js > dark mode > dark mode uses a black background
+  T2  test/theme.test.js > dark mode > dark mode reports the dark label
+
+files (ranked by best line)
+  #1  src/theme.js  best 1.0000  (5 lines)
+
+top 5 lines (all covered by feature tests; ranked by exclusivity)
+
+src/theme.js
+  #1  L13  exclusivity 1.0000  cf 2/2 (T1 T2)  cn 0/2  [unique]
+        const background = "#000000";
+  #2  L14  exclusivity 1.0000  cf 2/2 (T1 T2)  cn 0/2  [unique]
+        const foreground = "#e0e0e0";
+  #3  L15  exclusivity 1.0000  cf 2/2 (T1 T2)  cn 0/2  [unique]
+        return { background, foreground, label: "dark" };
+  #4  L5  exclusivity 0.7071  cf 1/2 (T1)  cn 0/2  [unique]
+        return darkTheme();
+  #5  L4  exclusivity 0.5000  cf 1/2 (T1)  cn 1/2
+        if (mode === "dark") {

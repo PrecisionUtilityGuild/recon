@@ -54,3 +54,49 @@ Ties break by exclusivity desc, cf desc, file asc, line asc. L19/L20/L21 tie at
 1.0000 (cf 2) and order by line: 19, 20, 21. Then L11 (0.7071), then L10 (0.5000).
 
 `totalNonzero = 5`, `truncated = false` at the default `-n 15`.
+
+# Golden derivation — `fixture-jest-basic`
+
+The Jest counterpart, byte-exact behind `fixture-jest-basic.txt` / `.json`.
+Same partition mechanics as `fixture-basic`, run through recon's Jest path
+(`runner: "jest"`) against a CommonJS fixture. Regenerate with:
+
+```
+cd pkg/test/fixtures/jest-basic
+node ../../../dist/cli.js "dark mode"        > ../../../spec/output-samples/fixture-jest-basic.txt
+node ../../../dist/cli.js "dark mode" --json > ../../../spec/output-samples/fixture-jest-basic.json
+```
+
+## Fixture
+
+`src/theme.js` — the same `applyTheme(mode)` dispatch as `theme-project`, in
+CommonJS, so line numbers differ (`darkTheme()`'s body is L13–L15, the `return
+darkTheme()` dispatch is L5, and the `if (mode === "dark")` branch is L4):
+
+| line | source |
+|------|--------|
+| L4   | `if (mode === "dark") {` |
+| L5   | `return darkTheme();` |
+| L13  | `const background = "#000000";` (darkTheme body) |
+| L14  | `const foreground = "#e0e0e0";` (darkTheme body) |
+| L15  | `return { background, foreground, label: "dark" };` (darkTheme body) |
+
+`test/theme.test.js` — four Jest tests partitioned by the substring `"dark mode"`:
+F = 2 (`dark mode > …`), N = 2 (`light mode > …`).
+
+## Per-line counters and exclusivity
+
+Identical arithmetic to `fixture-basic` (F = 2), only the line numbers change:
+
+| line | cf | cn | exclusivity | calc | unique |
+|------|----|----|-------------|------|--------|
+| L13  | 2  | 0  | 1.0000 | 2 / √(2·2) = 2/2 | yes |
+| L14  | 2  | 0  | 1.0000 | 2 / √(2·2) = 2/2 | yes |
+| L15  | 2  | 0  | 1.0000 | 2 / √(2·2) = 2/2 | yes |
+| L5   | 1  | 0  | 0.7071 | 1 / √(2·1) = 1/√2 | yes |
+| L4   | 1  | 1  | 0.5000 | 1 / √(2·2) = 1/2  | no  |
+
+`totalNonzero = 5`, `truncated = false`. The `jest-transformed` fixture exercises
+the same partition against a Babel-transformed `src/theme.ts`, proving V8 offsets
+map back to the original TypeScript line (its `darkTheme()` body ranks #1 at
+`src/theme.ts:13`) rather than the generated JavaScript.

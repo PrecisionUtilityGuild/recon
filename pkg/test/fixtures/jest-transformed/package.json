@@ -1,0 +1,8 @@
+{
+  "name": "recon-jest-transformed-fixture",
+  "private": true,
+  "devDependencies": {
+    "@babel/preset-typescript": "^7.29.7",
+    "jest": "^30.4.2"
+  }
+}

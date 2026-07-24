@@ -1,0 +1,7 @@
+{
+  "name": "recon-jest-basic-fixture",
+  "private": true,
+  "devDependencies": {
+    "jest": "^30.4.2"
+  }
+}

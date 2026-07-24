@@ -29,7 +29,7 @@ export interface FileRollup {
 }
 
 export interface Report {
-	runner: "vitest";
+	runner: "vitest" | "jest";
 	pattern: string; // the raw filter, as the user typed it
 	totals: TestTotals;
 	featureTests: FeatureTest[];

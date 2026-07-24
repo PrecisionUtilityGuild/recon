@@ -13,7 +13,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { RunnerAdapterError, isMultiProject, prepareRunner } from "./adapters.js";
+import { RunnerAdapterError, detectRunner, isMultiProject, prepareRunner, type RunnerName } from "./adapters.js";
 import { projectRootFrom, type TestRecord } from "./collect.js";
 import {
 	type FeatureTest,
@@ -33,12 +33,13 @@ interface Options {
 	all: boolean;
 	regex: boolean;
 	file: boolean; // pattern matches test FILE paths instead of test names
+	runner?: RunnerName; // explicit override; otherwise auto-detected
 	passthrough: string[];
 }
 
-const USAGE = `recon — feature location by coverage diff for Vitest
+const USAGE = `recon — feature location by coverage diff for Vitest and Jest
 
-Usage: recon [options] "<filter>" [-- <vitest args>]
+Usage: recon [options] "<filter>" [-- <runner args>]
 
 The filter selects the FEATURE tests (case-insensitive substring of each test's
 full "suite > name" by default). recon ranks the lines those tests cover most
@@ -50,13 +51,18 @@ Options:
   --all             Show every line covered by a feature test.
   --regex           Treat <filter> as a regular expression, not a substring.
   --file <glob>     Match the filter against test FILE paths instead of names.
+  --runner <name>   Force runner detection: vitest or jest.
   -h, --help        Show this help.
 
-Everything after \`--\` is passed through to vitest (e.g. a file filter).`;
+Everything after \`--\` is passed through to the selected runner (e.g. a file filter).`;
 
 const COVERAGE_REFUSAL =
 	"recon: the project's own coverage is enabled (coverage.enabled). Running recon alongside\n" +
 	"the v8 coverage provider silently zeroes the official report. Disable coverage and re-run.\n";
+
+const JEST_COVERAGE_REFUSAL =
+	"recon: the project's own Jest coverage is enabled (collectCoverage / --coverage). Running\n" +
+	"recon alongside it conflicts with per-test coverage collection. Disable coverage and re-run.\n";
 
 // True when a vitest passthrough arg turns coverage on. `--coverage`,
 // `--coverage=true`, and any `--coverage.<key>` (e.g. `--coverage.enabled`,
@@ -91,6 +97,15 @@ function parseArgs(argv: string[]): Options | { help: true } | { error: string }
 			opts.regex = true;
 		} else if (arg === "--file") {
 			opts.file = true;
+		} else if (arg === "--runner") {
+			const value = argv[i + 1];
+			if (value !== "vitest" && value !== "jest") return { error: `invalid value for --runner: ${value ?? ""}` };
+			opts.runner = value;
+			i += 1;
+		} else if (arg?.startsWith("--runner=")) {
+			const value = arg.slice("--runner=".length);
+			if (value !== "vitest" && value !== "jest") return { error: `invalid value for --runner: ${value}` };
+			opts.runner = value;
 		} else if (arg === "-h" || arg === "--help") {
 			return { help: true };
 		} else if (arg === "-n" || arg === "--top") {
@@ -212,27 +227,38 @@ async function main(): Promise<number> {
 	}
 	const opts = parsed;
 	const root = projectRootFrom(process.cwd());
+	const runner = opts.runner ?? detectRunner(root);
 
 	// Passthrough can turn coverage on even when the project config leaves it off
-	// (`recon x -- --coverage`), and collect() forwards passthrough to vitest. The
-	// project-config guard below cannot see those flags, so refuse up front.
+	// (`recon x -- --coverage`), and collect() forwards passthrough to the runner.
+	// The project-config guard below cannot see those flags, so refuse up front.
 	if (passthroughEnablesCoverage(opts.passthrough)) {
-		process.stderr.write(COVERAGE_REFUSAL);
+		process.stderr.write(runner === "jest" ? JEST_COVERAGE_REFUSAL : COVERAGE_REFUSAL);
 		return 2;
 	}
 
 	let session;
 	try {
-		session = await prepareRunner(root, opts.passthrough);
+		session = await prepareRunner(runner, root, opts.passthrough);
 	} catch (error) {
 		if (error instanceof RunnerAdapterError) {
-			process.stderr.write(error.kind === "coverage" ? COVERAGE_REFUSAL : error.message);
+			process.stderr.write(
+				error.kind === "coverage" ? (runner === "jest" ? JEST_COVERAGE_REFUSAL : COVERAGE_REFUSAL) : error.message,
+			);
 			return error.exitCode;
 		}
 		throw error;
 	}
 	try {
-		const { records, runnerExit, internalUrls, erroredFiles } = session.collected;
+		const { records, runnerExit, internalUrls, erroredFiles, incompleteMessage } = session.collected;
+
+		// Runner-positive evidence that the reported universe and the recorded
+		// coverage disagree (a Jest per-file environment override or a retry): the
+		// universe is incomplete, so any partition would be unreliable — refuse.
+		if (incompleteMessage) {
+			process.stderr.write(incompleteMessage);
+			return 1;
+		}
 
 		// Fail loud on incomplete collection — but only on POSITIVE evidence of a
 		// collection error, not merely "zero records + nonzero exit". A file that
@@ -243,7 +269,7 @@ async function main(): Promise<number> {
 				`recon: ${erroredFiles.length} test file(s) failed to collect (import/config/syntax error), ` +
 					"so the run is incomplete and any ranking would be unreliable:\n" +
 					erroredFiles.map((f) => `  ${rel(root, f)}\n`).join("") +
-					"Run vitest directly to see the errors, then re-run recon once they resolve.\n",
+					`Run ${runner} directly to see the errors, then re-run recon once they resolve.\n`,
 			);
 			return 1;
 		}
@@ -251,13 +277,13 @@ async function main(): Promise<number> {
 		if (records.length === 0) {
 			if (runnerExit === 0) {
 				process.stderr.write(
-					"recon: vitest ran but no tests were collected — nothing to locate.\n" +
-						"(Check your test file filter, or run vitest directly to confirm tests exist.)\n",
+					`recon: ${runner} ran but no tests were collected — nothing to locate.\n` +
+						`(Check your test file filter, or run ${runner} directly to confirm tests exist.)\n`,
 				);
 			} else {
 				process.stderr.write(
-					`recon: vitest exited ${runnerExit} before any per-test coverage was recorded.\n` +
-						"The suite likely failed to start (config/import error); run vitest directly to see why.\n",
+					`recon: ${runner} exited ${runnerExit} before any per-test coverage was recorded.\n` +
+						`The suite likely failed to start (config/import error); run ${runner} directly to see why.\n`,
 				);
 			}
 			return 1;
@@ -345,7 +371,7 @@ async function main(): Promise<number> {
 		}
 
 		const report: Report = {
-			runner: "vitest",
+			runner: session.runner,
 			pattern: opts.pattern,
 			totals,
 			featureTests: buildFeatureTests(featureOrdered),

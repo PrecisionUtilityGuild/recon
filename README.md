@@ -102,6 +102,16 @@ Branch on the exit code, not output text:
   [`pkg/README.md`](./pkg/README.md).
 - Release: [v0.1.0](https://github.com/PrecisionUtilityGuild/recon/releases/tag/v0.1.0).
 
+## Part of a family
+
+Three tools, one idea: answers grounded in what your tests actually execute — evidence an agent can't hallucinate. Pick by the question you're holding:
+
+| Your question | Tool |
+|---|---|
+| "A test is failing — which line is the bug?" | [culprits](https://github.com/PrecisionUtilityGuild/culprits) — spectrum fault localization ([npm](https://www.npmjs.com/package/@precisionutilityguild/culprits)) |
+| "Where is feature X implemented?" | [recon](https://github.com/PrecisionUtilityGuild/recon) — feature location by coverage diff ([npm](https://www.npmjs.com/package/@precisionutilityguild/recon)) |
+| "My uncommitted diff broke the tests — which hunks?" | [diffbisect](https://github.com/PrecisionUtilityGuild/diffbisect) — delta debugging below commit granularity ([npm](https://www.npmjs.com/package/@precisionutilityguild/diffbisect)) |
+
 Lineage: [*Software Reconnaissance: Mapping Program Features to Code*, Wilde & Scully,
 1995](https://doi.org/10.1002/smr.4360070105).
 

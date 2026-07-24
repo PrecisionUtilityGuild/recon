@@ -50,6 +50,13 @@ export interface CollectResult {
 	executedSources: Map<string, string>; // url -> exact executed source
 	runnerExit: number;
 	internalUrls: Set<string>; // injected runner/environment scripts excluded from ranking
+	// Runner-positive evidence that the reported test universe and the recorded
+	// coverage records do not describe the same complete suite (for example, a
+	// Jest per-file environment override bypassed the injected collector, or a
+	// retry produced duplicate records). Set by the Jest collector; when present,
+	// the CLI refuses to rank an incomplete universe (exit 1). The Vitest path
+	// leaves it undefined.
+	incompleteMessage?: string;
 	// Absolute paths of test files vitest reported as FAILED TO COLLECT (an
 	// import/config/syntax error: the file's suite failed with zero assertions
 	// run). Distinct from files with ordinary failing tests, and from skipped

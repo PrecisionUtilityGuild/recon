@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ReconSetupError, type CollectResult, readErroredFiles, readOut } from "./collect.js";
 
@@ -136,11 +136,17 @@ export async function collectJest(
 			"--json",
 			`--outputFile=${reportPath}`,
 		];
-		const exit = await runJest(resolved.bin, args, projectRoot, {
-			...process.env,
-			RECON_OUT_DIR: outDir,
-			RECON_JEST_ENVIRONMENT_BASE: resolved.environmentBase,
-		});
+		const exit = await runJest(
+			resolved.bin,
+			args,
+			projectRoot,
+			{
+				...process.env,
+				RECON_OUT_DIR: outDir,
+				RECON_JEST_ENVIRONMENT_BASE: resolved.environmentBase,
+			},
+			reportPath,
+		);
 		const { records, executedSources } = readOut(outDir);
 		const reportedTests = readJestTestCount(reportPath);
 		const incompleteMessage =
@@ -171,11 +177,47 @@ function readJestTestCount(reportPath: string): number | null {
 	}
 }
 
-function runJest(bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<number> {
+// The `Test results written to: <path>` line Jest prints for `--outputFile`
+// (@jest/core, unconditional under `--json`). It names recon's own throwaway
+// report inside a `recon-jest-XXXX` temp dir, so to a stranger it reads as
+// recon litter. Jest offers no flag to silence it, so we filter exactly that
+// line out of the passthrough — nothing else. The line's tail is `path.relative`
+// of the report path from cwd; realpath differences (e.g. /var vs /private/var)
+// can make it absolute or `../`-prefixed, so we match on the fixed prefix plus
+// the report's own basename rather than an exact string.
+function isOutputFileNotice(line: string, reportPath: string): boolean {
+	const marker = "Test results written to:";
+	if (!line.startsWith(marker)) return false;
+	return line.slice(marker.length).trimEnd().endsWith(basename(reportPath));
+}
+
+function runJest(
+	bin: string,
+	args: string[],
+	cwd: string,
+	env: NodeJS.ProcessEnv,
+	reportPath: string,
+): Promise<number> {
 	return new Promise((resolvePromise, reject) => {
 		const child = spawn(process.execPath, [bin, ...args], { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
 		child.stdout?.on("data", (chunk) => process.stderr.write(chunk));
-		child.stderr?.on("data", (chunk) => process.stderr.write(chunk));
+		// Buffer stderr into complete lines so the notice can be dropped whole
+		// regardless of chunk boundaries; every other line streams through intact.
+		let pending = "";
+		child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
+			pending += chunk;
+			let newline = pending.indexOf("\n");
+			while (newline !== -1) {
+				const line = pending.slice(0, newline + 1);
+				if (!isOutputFileNotice(line, reportPath)) process.stderr.write(line);
+				pending = pending.slice(newline + 1);
+				newline = pending.indexOf("\n");
+			}
+		});
+		child.stderr?.on("end", () => {
+			if (pending && !isOutputFileNotice(pending, reportPath)) process.stderr.write(pending);
+			pending = "";
+		});
 		child.on("error", reject);
 		child.on("exit", (code) => resolvePromise(code ?? 1));
 	});

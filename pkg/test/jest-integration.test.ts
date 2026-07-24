@@ -36,6 +36,17 @@ describe.skipIf(!ready)("Jest runner adapter", () => {
 		expect(result.stderr).not.toContain("overlapping coverage windows");
 	});
 
+	test("suppresses Jest's own outputFile notice while other stderr streams through", () => {
+		const result = run("jest-basic", ["dark mode", "--json"]);
+		expect(result.status).toBe(0);
+		// recon's throwaway report notice must not leak as recon litter...
+		expect(result.stderr).not.toContain("Test results written to:");
+		expect(result.stderr).not.toContain("recon-jest-");
+		// ...but the runner's legitimate summary still passes through unchanged.
+		expect(result.stderr).toContain("Tests:");
+		expect(result.stderr).toContain("Ran all test suites.");
+	});
+
 	test("human and --json output are byte-identical to the committed goldens", () => {
 		const human = run("jest-basic", ["dark mode"]);
 		expect(human.status).toBe(0);

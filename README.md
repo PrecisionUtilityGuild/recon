@@ -1,12 +1,15 @@
-# Feature location for Vitest and Jest
+# recon
 
-**Where is feature X implemented?** Feature location by per-test coverage diff for Vitest and Jest —
-ranked source lines with the tests that prove them. It is execution evidence, not a grep result:
-the tool runs your suite and ranks the lines exercised most exclusively by feature-matching tests.
+**Where is feature X implemented?** You know the behavior. You don't know which files hold it, and
+grepping for "dark mode" finds the string, not the code. recon runs your test suite and ranks the
+source lines exercised most exclusively by the tests for that feature — with the test names that
+prove each line.
 
-## Install / quickstart
+It is execution evidence, not a text search.
 
-Run from the root of a project using Vitest 4+ or Jest 30+:
+## Run it
+
+From the root of a project using Vitest 4+ or Jest 30+:
 
 ```
 npx @precisionutilityguild/recon "dark mode"
@@ -16,11 +19,12 @@ The quoted filter is a case-insensitive substring of each test's full `suite > t
 matching tests form the feature set; every other test forms the baseline. Lines are ranked by
 Ochiai exclusivity, and the output names the feature tests that covered each line.
 
-## A real run (trimmed)
+## What it looks like
 
-Captured from the [`@precisionutilityguild/culprits`](https://github.com/PrecisionUtilityGuild/culprits)
-working copy, two test files for a short transcript. Omit `2>/dev/null` in normal use so collection
-warnings stay visible. Trimmed to the top 4 lines; the full run is in [`pkg/README.md`](./pkg/README.md).
+A real run against the [`culprits`](https://github.com/PrecisionUtilityGuild/culprits) working
+copy, narrowed to two test files to keep the transcript short. Trimmed to the top 4 lines; the full
+run is in [`pkg/README.md`](./pkg/README.md). Omit `2>/dev/null` in normal use so collection
+warnings stay visible.
 
 ```text
 $ node ../../recon/pkg/dist/cli.js "version gate" -n 8 -- test/jest-version-gate.test.ts test/score.test.ts 2>/dev/null; printf 'exit_code=%s\n' "$?"
@@ -49,17 +53,8 @@ src/jest-collect.ts
 exit_code=0
 ```
 
-## What it is / what it is NOT
-
-Feature location starts with a behavior *named by tests* and ranks the source lines associated with
-it. That is a different query from these neighbors:
-
-- **Not Wallaby-style "which tests cover this line?"** That starts from a known source line and
-  returns its tests; feature location runs the other direction. See Wallaby's
-  [Show Line Tests](https://wallabyjs.com/docs/v1/intro/get-started-vscode.html).
-- **Not CI coverage-diff regression gating.** Codecov patch coverage and
-  [`diff-test-coverage`](https://www.npmjs.com/package/@connectis/diff-test-coverage) evaluate lines
-  changed between commits; feature location compares two partitions of one test run.
+`cf 4/4` means all four feature tests covered the line; `cn 0/18` means none of the eighteen
+baseline tests did. That is what `[unique]` marks.
 
 ## Flags
 
@@ -96,19 +91,32 @@ Branch on the exit code, not output text:
 - The Jest path is narrower: only the default `jest-environment-node` with the jest-circus runner,
   no per-file environment overrides or retries. Full list: [Known limitations (Jest)](./pkg/README.md#known-limitations-jest).
 
-## More
+## What it is not
 
-- Full contract — `--json` field-by-field, JSON output shape, `--file` glob syntax, lineage:
-  [`pkg/README.md`](./pkg/README.md).
-- Release: [v0.1.0](https://github.com/PrecisionUtilityGuild/recon/releases/tag/v0.1.0).
+Feature location starts with a behavior *named by tests* and ranks the source lines associated with
+it. That is a different query from these neighbors:
+
+- **Not Wallaby-style "which tests cover this line?"** That starts from a known source line and
+  returns its tests; feature location runs the other direction. See Wallaby's
+  [Show Line Tests](https://wallabyjs.com/docs/v1/intro/get-started-vscode.html).
+- **Not CI coverage-diff regression gating.** Codecov patch coverage and
+  [`diff-test-coverage`](https://www.npmjs.com/package/@connectis/diff-test-coverage) evaluate lines
+  changed between commits; feature location compares two partitions of one test run.
+
+## Deeper reference
+
+- [`pkg/README.md`](./pkg/README.md) — the `--json` output contract field by field, `--file` glob
+  syntax, runner detection rules, and the full Jest refusal matrix.
+- Releases: [v0.2.0](https://github.com/PrecisionUtilityGuild/recon/releases/tag/v0.2.0).
 
 ## Part of a family
 
-Three tools, one idea: answers grounded in what your tests actually execute — evidence an agent can't hallucinate. Pick by the question you're holding:
+Four tools, one idea: answers grounded in what your tests actually execute — evidence an agent can't hallucinate. Pick by the question you're holding:
 
 | Your question | Tool |
 |---|---|
 | "A test is failing — which line is the bug?" | [culprits](https://github.com/PrecisionUtilityGuild/culprits) — spectrum fault localization ([npm](https://www.npmjs.com/package/@precisionutilityguild/culprits)) |
+| "One test is failing — which *function* returns the wrong value?" | [apd](https://github.com/PrecisionUtilityGuild/apd) — algorithmic debugging, LLM-as-oracle ([npm](https://www.npmjs.com/package/@precisionutilityguild/apd)) |
 | "Where is feature X implemented?" | [recon](https://github.com/PrecisionUtilityGuild/recon) — feature location by coverage diff ([npm](https://www.npmjs.com/package/@precisionutilityguild/recon)) |
 | "My uncommitted diff broke the tests — which hunks?" | [diffbisect](https://github.com/PrecisionUtilityGuild/diffbisect) — delta debugging below commit granularity ([npm](https://www.npmjs.com/package/@precisionutilityguild/diffbisect)) |
 

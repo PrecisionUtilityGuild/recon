@@ -1,6 +1,6 @@
 {
   "name": "@precisionutilityguild/recon",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Feature location by coverage diff for vitest — where does feature X live? These lines, ranked, with the tests that prove it.",
   "keywords": [
     "feature-location",

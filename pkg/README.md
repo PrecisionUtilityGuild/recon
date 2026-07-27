@@ -1,37 +1,29 @@
-# Feature location for Vitest and Jest
+# recon
 
-**Where is feature X implemented?** This tool answers by running the test suite and ranking the
-source lines exercised most exclusively by feature-matching tests. It is execution evidence for
-feature location, not a grep result.
+**Where is feature X implemented?** You know the behavior. You don't know which files hold it, and
+grepping for "dark mode" finds the string, not the code. recon runs your test suite and ranks the
+source lines exercised most exclusively by the tests for that feature — with the test names that
+prove each line.
 
-Run it from the root of a project with Vitest 4+ or Jest 30+:
+It is execution evidence, not a text search.
 
-`npx @precisionutilityguild/recon "dark mode"`
+## Run it
+
+From the root of a project using Vitest 4+ or Jest 30+:
+
+```
+npx @precisionutilityguild/recon "dark mode"
+```
 
 The quoted filter is a case-insensitive substring of each test's full `suite > test` name. The
 matching tests form the feature set; every other test forms the baseline. Lines are ranked by
 Ochiai exclusivity, and the output names the feature tests that covered each line.
 
-## Runners
+## What it looks like
 
-recon detects the runner the same way for every command: a Jest config (a `jest` key in
-`package.json` or a `jest.config.*` file) or a declared `jest` without a declared `vitest` selects
-Jest; everything else uses Vitest. Force the choice with `--runner vitest` or `--runner jest`.
-
-- **Vitest 4+** — the per-test coverage runner is injected through a synthetic config that inherits
-  the project's own config.
-- **Jest 30+** — recon runs the project's own Jest with an injected `--testEnvironment` that records
-  per-test V8 coverage through jest-circus events; the project's Jest configuration is not edited.
-  The Jest floor is enforced at runtime, not just advised by `peerDependencies`: a resolved Jest
-  below major 30 is refused with exit 2, naming the version found
-  ([`resolveJest`](./src/jest-collect.ts), covered by `test/jest-version-gate.test.ts`).
-
-## Real run
-
-This transcript was captured from the
-[`@precisionutilityguild/culprits`](https://github.com/PrecisionUtilityGuild/culprits) working
-copy. It uses two test files to keep the transcript short while preserving both a feature set and
-a baseline. Stderr was suppressed only for the transcript; omit `2>/dev/null` in normal use so
+A real run against the [`culprits`](https://github.com/PrecisionUtilityGuild/culprits) working
+copy, narrowed to two test files to keep the transcript short while preserving both a feature set
+and a baseline. Stderr was suppressed only for the transcript; omit `2>/dev/null` in normal use so
 collection warnings remain visible.
 
 ```text
@@ -69,17 +61,9 @@ src/jest-collect.ts
 exit_code=0
 ```
 
-## What this is not
-
-- It is not Wallaby-style “which tests cover this line?” lookup. That query starts with a known
-  source line and returns its tests; feature location starts with a behavior named by tests and
-  ranks the source lines associated with it. See Wallaby's
-  [Show Line Tests](https://wallabyjs.com/docs/v1/intro/get-started-vscode.html).
-- It is not CI coverage-diff regression gating. Codecov patch coverage and
-  `diff-test-coverage` evaluate lines changed between commits or in a source-control diff; feature
-  location compares two partitions of one test run. See
-  [Codecov patch coverage](https://docs.codecov.com/do/docs/commit-status) and
-  [`diff-test-coverage`](https://www.npmjs.com/package/@connectis/diff-test-coverage).
+`cf 4/4` means all four feature tests covered the line; `cn 0/18` means none of the eighteen
+baseline tests did. That is what `[unique]` marks. The four 0.8660 lines were covered by three of
+the four feature tests and still no baseline test — exclusive, but less consistently reached.
 
 ## Flags
 
@@ -97,6 +81,20 @@ exit_code=0
 `--file` accepts `*` within one path segment, `**` across path separators, and `?` for one
 character. For example, `npx @precisionutilityguild/recon --file "test/dark*.test.ts"` partitions
 by test file.
+
+## Runner detection
+
+recon detects the runner the same way for every command: a Jest config (a `jest` key in
+`package.json` or a `jest.config.*` file) or a declared `jest` without a declared `vitest` selects
+Jest; everything else uses Vitest. Force the choice with `--runner vitest` or `--runner jest`.
+
+- **Vitest 4+** — the per-test coverage runner is injected through a synthetic config that inherits
+  the project's own config.
+- **Jest 30+** — recon runs the project's own Jest with an injected `--testEnvironment` that records
+  per-test V8 coverage through jest-circus events; the project's Jest configuration is not edited.
+  The Jest floor is enforced at runtime, not just advised by `peerDependencies`: a resolved Jest
+  below major 30 is refused with exit 2, naming the version found
+  ([`resolveJest`](./src/jest-collect.ts), covered by `test/jest-version-gate.test.ts`).
 
 ## JSON output
 
@@ -170,13 +168,28 @@ Each of these is enforced in [`src/adapters.ts`](./src/adapters.ts) /
 [`src/jest-collect.ts`](./src/jest-collect.ts) and asserted in `test/jest-integration.test.ts`,
 `test/jest-version-gate.test.ts`, and `test/jest-environment-gate.test.ts`.
 
+## What it is not
+
+Feature location starts with a behavior named by tests and ranks the source lines associated with
+it. That is a different query from these neighbors:
+
+- It is not Wallaby-style “which tests cover this line?” lookup. That query starts with a known
+  source line and returns its tests; feature location runs the other direction. See Wallaby's
+  [Show Line Tests](https://wallabyjs.com/docs/v1/intro/get-started-vscode.html).
+- It is not CI coverage-diff regression gating. Codecov patch coverage and
+  `diff-test-coverage` evaluate lines changed between commits or in a source-control diff; feature
+  location compares two partitions of one test run. See
+  [Codecov patch coverage](https://docs.codecov.com/do/docs/commit-status) and
+  [`diff-test-coverage`](https://www.npmjs.com/package/@connectis/diff-test-coverage).
+
 ## Part of a family
 
-Three tools, one idea: answers grounded in what your tests actually execute — evidence an agent can't hallucinate. Pick by the question you're holding:
+Four tools, one idea: answers grounded in what your tests actually execute — evidence an agent can't hallucinate. Pick by the question you're holding:
 
 | Your question | Tool |
 |---|---|
 | "A test is failing — which line is the bug?" | [culprits](https://github.com/PrecisionUtilityGuild/culprits) — spectrum fault localization ([npm](https://www.npmjs.com/package/@precisionutilityguild/culprits)) |
+| "One test is failing — which *function* returns the wrong value?" | [apd](https://github.com/PrecisionUtilityGuild/apd) — algorithmic debugging, LLM-as-oracle ([npm](https://www.npmjs.com/package/@precisionutilityguild/apd)) |
 | "Where is feature X implemented?" | [recon](https://github.com/PrecisionUtilityGuild/recon) — feature location by coverage diff ([npm](https://www.npmjs.com/package/@precisionutilityguild/recon)) |
 | "My uncommitted diff broke the tests — which hunks?" | [diffbisect](https://github.com/PrecisionUtilityGuild/diffbisect) — delta debugging below commit granularity ([npm](https://www.npmjs.com/package/@precisionutilityguild/diffbisect)) |
 
